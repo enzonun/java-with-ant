@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="java-ant-project-sample" default="default" basedir="."
+         xmlns:ivy="antlib:org.apache.ivy.ant">
+
+    <description>
+        Ant Build file
+    </description>
+
+    <!-- set global properties for this build -->
+    <property name="project.name" value="java-ant-project-sample"/>
+    <property name="src.dir" location="src"/>
+    <property name="build.dir" location="classes"/>
+    <property name="lib.dir" value="lib"/>
+    <property name="target" location="target"/>
+    <property name="target.lib" location="target/lib"/>
+    <property name="main-class" value="com.javawithant.sample.Main"/>
+
+    <!-- Creates lib dir if not exists -->
+    <mkdir dir="${lib.dir}"/>
+
+    <!-- clean directories build (.classes) and target (.jar or .war) -->
+    <target name="clean" description="clean up build directory">
+        <delete dir="${build.dir}"/>
+        <delete dir="${target}"/>
+        <delete dir="out"/>
+    </target>
+
+    <target name="cleanIvyCache" description="clean ivy cache">
+        <ivy:cleancache/>
+    </target>
+
+    <target name="ivy" description="Install ivy">
+        <mkdir dir="${user.home}/.ant/lib"/>
+        <get dest="${user.home}/.ant/lib/ivy.jar"
+             src="http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/2.5.0/ivy-2.5.0.jar"/>
+    </target>
+
+    <target name="install" depends="cleanIvyCache, ivy" description="retrieve dependencies with Ivy">
+        <ivy:retrieve sync="true" pattern="${lib.dir}/[conf]/[artifact]-[type]-[revision].[ext]"/>
+        <path id="build.path">
+            <fileset dir="${lib.dir}" includes="**/*.jar"/>
+        </path>
+    </target>
+
+    <path id="classpath">
+        <pathelement path="${build.dir}"/>
+        <fileset dir="${lib.dir}" includes="**/*.jar"/>
+    </path>
+
+    <target name="compile" description="compile the source">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" encoding="UTF-8" debug="true" fork="true"
+               classpathref="classpath"
+               includeantruntime="false"/>
+    </target>
+
+    <target name="run">
+        <java fork="true" failonerror="yes" classname="com.javawithant.sample.Main">
+            <classpath>
+                <pathelement location="${build.dir}"/>
+            </classpath>
+        </java>
+    </target>
+
+    <!-- ========== JAR + LIB ========== -->
+    <!-- constructs the external libraries classpath name  -->
+    <!--         <pathconvert property="classpath.name" pathsep=" ">-->
+    <!--            <path refid="classpath" />-->
+    <!--            <mapper>-->
+    <!--                <chainedmapper>-->
+    <!--                    <flattenmapper />-->
+    <!--                    <globmapper from="*.jar" to="${lib.dir}/*.jar" />-->
+    <!--                </chainedmapper>-->
+    <!--            </mapper>-->
+    <!--        </pathconvert>-->
+
+    <!--        <target name="copydep">-->
+    <!--            <copy todir="${target.lib}">-->
+    <!--                <fileset dir="${lib.dir}" includes="**/*.jar" />-->
+    <!--            </copy>-->
+    <!--        </target>-->
+
+    <!--        <target name="jar" depends="compile, copydep" description="package, output to
+    JAR">-->
+
+    <!--            <echo message="classpath.name : ${classpath.name} " />-->
+
+    <!--            <mkdir dir="${target}" />-->
+    <!--            <mkdir dir="${target.lib}" />-->
+
+    <!--            <jar jarfile="${target}/${project.name}.jar" basedir="${build.dir}">-->
+    <!--                <manifest>-->
+    <!--                    <attribute name="Main-Class" value="${main-class}" />-->
+    <!--                    <attribute name="Class-Path" value="${classpath.name}" />-->
+    <!--                </manifest>-->
+    <!--            </jar>-->
+    <!--        </target>-->
+
+    <!-- ========== FAT JAR ========== -->
+    <!--     Unify dependencies on a big dependency-all.jar-->
+    <target name="copy-dependencies">
+
+        <mkdir dir="${target.lib}"/>
+
+        <jar jarfile="${target.lib}/dependencies-all.jar" zip64Mode="always">
+            <zipgroupfileset dir="${lib.dir}">
+                <include name="**/*.jar"/>
+            </zipgroupfileset>
+        </jar>
+
+    </target>
+
+    <!--  jar and then extract dependency-all.jar and zip it with project files -->
+    <target name="jar" depends="compile, copy-dependencies" description="package, output to JAR">
+
+        <mkdir dir="${target}"/>
+        <mkdir dir="${target.lib}"/>
+
+        <jar jarfile="${target}/${project.name}.jar" basedir="${build.dir}" zip64Mode="always">
+            <manifest>
+                <attribute name="Main-Class" value="${main-class}"/>
+            </manifest>
+            <zipfileset src="${target.lib}/dependencies-all.jar" excludes="META-INF/*.SF"/>
+        </jar>
+
+    </target>
+
+    <!-- <target name="target" depends="clean, compile, jar" /> -->
+
+</project>
